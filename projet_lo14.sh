@@ -1,9 +1,9 @@
 #!/bin/bash
 #Le script doit être situé dans le répertoire root de l'utilisateur pour l'instant
 #variables
-journal="synjournal.txt"
-ArbreA="/root/synchroniseur/A"
-ArbreB="/root/synchroniseur/B"
+journal="$HOME/synjournal.txt"
+ArbreA="$HOME/synchroniseur/A"
+ArbreB="$HOME/synchroniseur/B"
 
 #Status de la synchronisation
 Esync="false";
@@ -56,9 +56,9 @@ then
 	prmain
 else
 	echo "Création des arbres A et B"
-	mkdir ./synchroniseur
-	mkdir ./synchroniseur/A
-	mkdir ./synchroniseur/B
+	mkdir $HOME/synchroniseur
+	mkdir $HOME/synchroniseur/A
+	mkdir $HOME/synchroniseur/B
 	prmain
 fi
 }
@@ -71,7 +71,7 @@ then
 	Erep
 else
 	echo "Le journal n'existe pas, il va maintenant être crée"
-	touch synjournal.txt
+	touch $HOME/synjournal.txt
 	Erep
 	
 fi
