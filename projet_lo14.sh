@@ -1,7 +1,7 @@
 #!/bin/bash
 #Le script doit être situé dans le répertoire root de l'utilisateur pour l'instant
 #variables
-journal="$HOME/synjournal.txt"
+journal="$HOME/synjournal.log"
 ArbreA="$HOME/synchroniseur/A"
 ArbreB="$HOME/synchroniseur/B"
 
@@ -12,12 +12,33 @@ Esync="false";
 function Jsync {
 if [ $Esync = true ]
 then
+	#FichierA
 	#affichage de la date de synchronisation
-	date
+	echo "$fichier" >> $journal
+	echo "Date de synchronisation : `date`" >> $journal
 	#affichage du chemin absolu du fichier dans le journal
-	find ./ -name $fichier >> $journal
-	#affichage des droits, nom, date, propriétaire, groupe, le type et taille du fichier
-	ls -l >> $journal
+	echo "Chemin absolu : `find ./ -name $fichier`" >> $journal
+	#Affichage du type de fichier
+	echo "Type de fichier : `file $fichier`" >> $journal
+	#affichage des droits, taille et date d'accès du fichier
+	echo "Infos: `stat $fichier`" >> $journal
+	echo "######################################" >> $journal
+	
+	
+	#FichierB
+	#affichage de la date de synchronisation
+	echo "$fichier2" >> $journal
+	echo "Date de synchronisation : `date`" >> $journal
+	#affichage du chemin absolu du fichier dans le journal
+	echo "Chemin absolu : `find ./ -name $fichier2`" >> $journal
+	#Affichage du type de fichier
+	echo "Type de fichier : `file $fichier2`" >> $journal
+	#affichage des droits, taille et date d'accès du fichier
+	echo "Infos: `stat $fichier2`" >> $journal
+	echo "######################################" >> $journal
+	
+
+	
 else
 	echo "La synchronisation pour le fichier $fichier à échouée"
 fi
@@ -47,8 +68,8 @@ then
 		   exit 1
 		   ;;
 		*) echo "Désolé, veuillez choisir les options 1, 2 ou 3"
-                   lstcft
-                   ;;
+           lstcft
+           ;;
 	esac
 
 fi
@@ -89,7 +110,15 @@ do
 		echo "Conflit entre $fichierA et $fichierB"
 		let conflit++
 		touch $HOME/listcft.txt
-
+		if [ -d "$fichierA" -a -f "$fichierB" ]
+		then
+			echo "$fichierA est un répertoire et $fichierB un fichier"
+		fi
+		if [ -f "$fichierA" -a -d "$fichierB" ]
+		then
+			echo "$fichierB est un répertoire et $fichierA un fichier"
+		fi
+		
 		basename $fichierA >> listcft.txt
 		basename $fichierB >> listcft.txt
 		
@@ -99,22 +128,73 @@ do
 	if [ -d "$fichierA" ] && [ -d "$fichierB" ]
 	then
 		echo "$fichierA et $fichierB sont des répertoires"
+		ArbreA="$HOME/synchroniseur/A/$fichierA"
+		ArbreA="$HOME/synchroniseur/A/$fichierB"
 		prmain
 	
 	fi
 	;;
 	2)
-	if [ -f "$fichierA" ] && [ -f "$fichierB" ]
+	fichierA_date=`stat ./$fichierA | grep Modif | cut -c11-20`
+	fichierB_date=`stat ./$fichierB |grep Modif | cut -c11-20`
+
+
+	fichierA_heure=`stat ./$fichierA | grep Modif | cut -c22-39`
+	fichierB_heure=`stat ./$fichierB | grep Modif | cut -c22-39`
+	
+	#mode -b "brief" pour empêcher l'erreur "trop d'arguments en paramètres"
+	fichierA_type=`file -b ./$fichierA`
+	fichierB_type=`file -b ./$fichierB`
+
+	fichierA_droits=`stat ./$fichierA | grep Accès | cut -c16-26 | grep /`
+	fichierB_droits=`stat ./$fichierB | grep Accès | cut -c16-26 | grep /`
+
+	fichierA_taille=`stat ./$fichierA | grep Taille | cut -c14-24`
+	fichierB_taille=`stat ./$fichierB | grep Taille | cut -c14-24`
+	
+	
+
+	#Utiliser c22-29 pour l'heure pour enlever les milisecondes (c22-39), si la gestion des milisecondes devient trop compliquée
+	if [ -f "$fichierA" -a -f "$fichierB" ] && [ $fichierA_date = $fichierB_date ] && [ $fichierA_heure = $fichierB_heure ] && [ $fichierA_type = $fichierB_type ] && [ $fichierA_droits = $fichierB_droits ] && [ $fichierA_taille = $fichierB_taille ]
 	then
-		echo "Synchronisation possible"
+		echo "La date de modification, les droits, le type et la taille de $fichierA correspondent à celles de $fichierB, la synchronisation est 	réussie"
+		$ficher=$fichierA
+		$fichier2=$fichierB
 		Jsync
 		
 	fi
 	;;
 	3)
+	positionA=`grep $fichierA $journal`
+	positionA=`echo $?`
+	positionB=`grep $fichierB $journal`
+	positionB=`echo $?`
+
 	if [ -f "$fichierA" ] && [ -f "$fichierB" ]
+	#utiliser commande touch
 	then
-		echo "$fichierB n'est pas conforme au journal, il a été modifié"
+		if [ $positionA = 1 ] && [
+		then
+			echo "$fichierA n'est pas conforme au journal, il a été modifié"
+	
+		fi
+		if [ $positionB = 1 ]
+		then
+			echo "$fichierB n'est pas conforme au journal, il a été modifié"
+	
+		fi
+		if [ $positionA = 0 ]
+		then
+			echo "$fichierA n'est pas présent sur le journal, ajout"
+			Jsync
+	
+		fi
+		if [ $positionB = 0 ]
+		then
+			echo "$fichierB n'est pas présent sur le journal, ajout"
+			Jsync
+	
+		fi
 	fi
 	;;
 	4)
@@ -182,4 +262,15 @@ fi
 #https://www.funix.org/fr/unix/awk.htm
 #http://www.shellunix.com/awk.html
 
-
+REP1=$1
+REP2=$2
+ 
+#Le but du test est de récupérer le nombre de lignes
+#émises vers la sortie standard via grep -c .
+#Si diff émet une ou plusieurs lignes, les dossiers
+#sont différents. Sinon ils sont identiques.
+if [ $(diff -r $REP1 $REP2 | grep -c .) -gt 0 ]; then
+    echo "Les répertoires sont différents"
+else
+    echo "Les répertoires sont identiques"
+fi
