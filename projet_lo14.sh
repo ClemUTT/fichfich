@@ -5,6 +5,9 @@ journal="$HOME/synjournal.log"
 ArbreA="$HOME/synchroniseur/A"
 ArbreB="$HOME/synchroniseur/B"
 
+#Initialisation de du booléen conflit
+conflit=0;
+
 #Status de la synchronisation
 Esync="false";
 
@@ -40,14 +43,15 @@ then
 
 	
 else
-	echo "La synchronisation pour le fichier $fichier à échouée"
+	echo "La synchronisation pour le fichier $fichier a échoué"
 fi
 	
 }
 
 #fonction pour gérer les conflits suite à la synchronisation
 function lstcft {
-if [ $conflit -ge 1 ]
+echo $conflit
+if [ $conflit = 0 ]
 then
 	echo "Des conflits ont été détectés, voici la liste des fichiers concernés"
 	cat listcft.txt
@@ -59,9 +63,13 @@ then
 	case $choix in
 		1) echo ""
 		   diff $fichierA $fichierB -s
+		   lstcft
 		   ;;
 		2) echo ""
 		   echo "La suppression des fichiers va commencer"
+			while read fich; do
+				rm $fich
+			done <$HOME/listcft.txt
 		   ;;
 		3) echo ""
 		   echo "Aucune modification ne sera apportée aux fichiers"
@@ -102,13 +110,13 @@ do
   		echo "$fichierB est un répertoire"
   	fi
 
-  case $fichierA in
-	0)
+
 	#if [ -d "$fichierA"] && [ -f "$fichierB" ] || [ -f "$fichierA" ] && [ -d "$fichierB" ]
+	#Si fichierA et fichierB ne sont pas de même types (répertoire et fichier)
 	if [ -d "$fichierA" -a -f "$fichierB" ] || [ -f "$fichierA" -a -d "$fichierB" ]
 	then
 		echo "Conflit entre $fichierA et $fichierB"
-		let conflit++
+		let $conflit++
 		touch $HOME/listcft.txt
 		if [ -d "$fichierA" -a -f "$fichierB" ]
 		then
@@ -119,12 +127,11 @@ do
 			echo "$fichierB est un répertoire et $fichierA un fichier"
 		fi
 		
-		basename $fichierA >> listcft.txt
-		basename $fichierB >> listcft.txt
+		$fichierA >> listcft.txt
+		$fichierB >> listcft.txt
 		
 	fi
-	;;
-	1)
+
 	if [ -d "$fichierA" ] && [ -d "$fichierB" ]
 	then
 		echo "$fichierA et $fichierB sont des répertoires"
@@ -133,24 +140,22 @@ do
 		prmain
 	
 	fi
-	;;
-	2)
-	fichierA_date=`stat ./$fichierA | grep Modif | cut -c11-20`
-	fichierB_date=`stat ./$fichierB |grep Modif | cut -c11-20`
+	fichierA_date=`stat $fichierA | grep Modif | cut -c11-20`
+	fichierB_date=`stat $fichierB |grep Modif | cut -c11-20`
 
 
-	fichierA_heure=`stat ./$fichierA | grep Modif | cut -c22-39`
-	fichierB_heure=`stat ./$fichierB | grep Modif | cut -c22-39`
+	fichierA_heure=`stat $fichierA | grep Modif | cut -c22-39`
+	fichierB_heure=`stat $fichierB | grep Modif | cut -c22-39`
 	
 	#mode -b "brief" pour empêcher l'erreur "trop d'arguments en paramètres"
-	fichierA_type=`file -b ./$fichierA`
-	fichierB_type=`file -b ./$fichierB`
+	fichierA_type=`file -b $fichierA`
+	fichierB_type=`file -b $fichierB`
 
-	fichierA_droits=`stat ./$fichierA | grep Accès | cut -c16-26 | grep /`
-	fichierB_droits=`stat ./$fichierB | grep Accès | cut -c16-26 | grep /`
+	fichierA_droits=`stat $fichierA | grep Accès | cut -c16-26 | grep /`
+	fichierB_droits=`stat $fichierB | grep Accès | cut -c16-26 | grep /`
 
-	fichierA_taille=`stat ./$fichierA | grep Taille | cut -c14-24`
-	fichierB_taille=`stat ./$fichierB | grep Taille | cut -c14-24`
+	fichierA_taille=`stat $fichierA | grep Taille | cut -c14-24`
+	fichierB_taille=`stat $fichierB | grep Taille | cut -c14-24`
 	
 	
 
@@ -163,8 +168,7 @@ do
 		Jsync
 		
 	fi
-	;;
-	3)
+
 	positionA=`grep $fichierA $journal`
 	positionA=`echo $?`
 	positionB=`grep $fichierB $journal`
@@ -173,7 +177,7 @@ do
 	if [ -f "$fichierA" ] && [ -f "$fichierB" ]
 	#utiliser commande touch
 	then
-		if [ $positionA = 1 ] && [
+		if [ $positionA = 1 ]
 		then
 			echo "$fichierA n'est pas conforme au journal, il a été modifié"
 	
@@ -196,21 +200,18 @@ do
 	
 		fi
 	fi
-	;;
-	4)
+
 	if [ -f "$fichierA" ] && [ -f "$fichierB" ]
 	then
 		echo "$fichierA n'est pas conforme au journal, il a été modifié"
 		
 	fi
-	;;
-	4)
+
 	if [ -f "$fichierA" ] && [ -f "$fichierB" ]
 	then
-		echo "$fichierA et $fichierB ne sont pas conforme au journal, ils ont été modifiés"
+		echo "$fichierA et $fichierB ne sont pas conformes au journal, ils ont été modifiés"
 	fi
-	;;
-  esac
+
 	done
 done
 #appel de la fonction pour gérer les conflits
@@ -269,8 +270,8 @@ REP2=$2
 #émises vers la sortie standard via grep -c .
 #Si diff émet une ou plusieurs lignes, les dossiers
 #sont différents. Sinon ils sont identiques.
-if [ $(diff -r $REP1 $REP2 | grep -c .) -gt 0 ]; then
-    echo "Les répertoires sont différents"
-else
-    echo "Les répertoires sont identiques"
-fi
+#if [ $(diff $REP1 $REP2 -r | grep -c .) -gt 0 ]; then
+#    echo "Les répertoires sont différents"
+#else
+#    echo "Les répertoires sont identiques"
+#fi
