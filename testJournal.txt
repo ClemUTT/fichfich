@@ -1,0 +1,7 @@
+///
+fichier1.txt
+22h22
+
+///
+fichier2.txt
+1456h10

@@ -31,7 +31,6 @@ journalA_taille=$fichierA_taille
 	
 #FichierA
 #affichage de la date de synchronisation
-echo "$fichierA" >> $journalTemp
 echo "Date de synchronisation : `date`" >> $journalTemp
 #affichage du chemin absolu du fichier dans le journal
 echo "Chemin absolu : $fichierA" >> $journalTemp
@@ -118,12 +117,6 @@ do
 	then
 		echo "fichierA apres boucle = $fichierA"
 		echo "fichierB apres boucle= $fichierB"
-
-		#On vérifie si chaque fichier de l'arbre A est présent dans le journal, si non, on l'indique
-		positionA=`grep $fichierA $journal`	
-		positionA=`echo $?`
-		positionB=`grep $fichierB $journal`
-		positionB=`echo $?`
 		
 		#Vérication de la différence de contenu entre deux fichiers
 		diff=`diff $fichierA $fichierB`
@@ -159,56 +152,57 @@ do
 		fichierA_taille=`stat $fichierA | grep Taille | cut -c14-24`
 		fichierB_taille=`stat $fichierB | grep Taille | cut -c14-24`
 
-        #S'ils ont une entrée dans le journal
-	position=`grep $fichierA $journal -c`
-		if [ "$position" -eq 1 ]
-		then
+		#S'ils ont une entrée dans le journal
+		position=`grep $fichierA $journal -c`
+		echo $position
+			if [ "$position" -eq 1 ]
+			then
 
 			
-           	 #S'ils ont les mêmes métadonnées, même contenu
-		
-
-                #Synchronisation réussie, on crée une entrée -> JSync
-		#si les deux fichiers sont bien des fichiers, et qu'ils ont le même contenu ainsi que les même métadonnées, alors la synchronisation est réussie
-
-		if [ -f "$fichierA" -a -f "$fichierB" ] && [ "$diff" = 0 ] && [ "$fichierA_date" = "$fichierB_date" ] && [ "$fichierA_heure" = "$fichierB_heure" ] && [ "$fichierA_type" = "$fichierB_type" ] && [ "$fichierA_droits" = "$fichierB_droits" ] && [ "$fichierA_taille" = "$fichierB_taille" ] && [ "$fichierA_nom" = "$fichierB_nom" ]
-		then
-			echo "La date de modification, les droits, le type et la taille de $fichierA correspondent à celles de $fichierB, la synchronisation est réussie"
-			Jsync
-		
-		fi
-            #Sinon
-		#Si l'un est un fichier et l'autre un répertoire
-
-		#Si $fichierA est un fichier et $fichierB un répertoire, il y a conflit.
-		if [ -d "$fichierA" -a -f "$fichierB" ] || [ -f "$fichierA" -a -d "$fichierB" ]
-		then
-			echo "Conflit entre $fichierA et $fichierB"
-			let conflit++
+		   	 #S'ils ont les mêmes métadonnées, même contenu
 			
-			if [ -d "$fichierA" -a -f "$fichierB" ]
+
+			#Synchronisation réussie, on crée une entrée -> JSync
+			#Si les deux fichiers sont bien des fichiers, et qu'ils ont le même contenu ainsi que les même métadonnées, alors la synchronisation est réussie
+
+			if [ -f "$fichierA" -a -f "$fichierB" ] && [ "$diff" = 0 ] && [ "$fichierA_date" = "$fichierB_date" ] && [ "$fichierA_heure" = "$fichierB_heure" ] && [ "$fichierA_type" = "$fichierB_type" ] && [ "$fichierA_droits" = "$fichierB_droits" ] && [ "$fichierA_taille" = "$fichierB_taille" ] && [ "$fichierA_nom" = "$fichierB_nom" ]
 			then
-				echo "$fichierA est un répertoire et $fichierB un fichier"
+				echo "La date de modification, les droits, le type et la taille de $fichierA correspondent à celles de $fichierB, la synchronisation est réussie"
+				Jsync
+			
 			fi
-			if [ -f "$fichierA" -a -d "$fichierB" ]
+    #Sinon
+			#Si l'un est un fichier et l'autre un répertoire
+
+			#Si $fichierA est un fichier et $fichierB un répertoire, il y a conflit.
+			if [ -d "$fichierA" -a -f "$fichierB" ] || [ -f "$fichierA" -a -d "$fichierB" ]
 			then
-				echo "$fichierB est un répertoire et $fichierA un fichier"
+				echo "Conflit entre $fichierA et $fichierB"
+				let conflit++
+				
+				if [ -d "$fichierA" -a -f "$fichierB" ]
+				then
+					echo "$fichierA est un répertoire et $fichierB un fichier"
+				fi
+				if [ -f "$fichierA" -a -d "$fichierB" ]
+				then
+					echo "$fichierB est un répertoire et $fichierA un fichier"
+				fi
+			
+			basename $fichierA >> listcft.txt
+			basename $fichierB >> listcft.txt
+			
 			fi
+			#Si ce sont tous les deux des répertoires
+			#fichierA et fichierB étant des répertoires, on descend dans l'arborescense
+			if [ -d "$fichierA" ] && [ -d "$fichierB" ]
+			then
+				echo "$fichierA et $fichierB sont des répertoires"
+				ArbreA="$HOME/synchroniseur/A/$fichierA"
+				ArbreA="$HOME/synchroniseur/A/$fichierB"
+				prmain
 		
-		basename $fichierA >> listcft.txt
-		basename $fichierB >> listcft.txt
-		
-		fi
-		#Si ce sont tous les deux des répertoires
-		#fichierA et fichierB étant des répertoires, on descend dans l'arborescense
-		if [ -d "$fichierA" ] && [ -d "$fichierB" ]
-		then
-			echo "$fichierA et $fichierB sont des répertoires"
-			ArbreA="$HOME/synchroniseur/A/$fichierA"
-			ArbreA="$HOME/synchroniseur/A/$fichierB"
-			prmain
-	
-		fi
+			fi
                 #Si pas les mêmes métadonnées
                     #On prend les métadonnées les plus récentes
                     #Synchronisation réussie, on crée une entrée -> JSync
